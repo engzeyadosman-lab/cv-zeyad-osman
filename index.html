@@ -5,7 +5,26 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Zeyad Ahmed | MEP BIM Coordinator</title>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+// Load Supabase with fallback CDN
+(function() {
+  function loadScript(src, cb) {
+    const s = document.createElement('script');
+    s.src = src; s.onload = cb;
+    s.onerror = function() {
+      // Try fallback CDN
+      const s2 = document.createElement('script');
+      s2.src = 'https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js';
+      s2.onload = cb;
+      document.head.appendChild(s2);
+    };
+    document.head.appendChild(s);
+  }
+  window._sbReady = new Promise(resolve => {
+    loadScript('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js', resolve);
+  });
+})();
+</script>
 <style>
 :root {
   --bg: #070b10;
@@ -705,13 +724,17 @@ let scripts   = [];
 // ── INIT ─────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', async () => {
   initCursor();
+  await window._sbReady;   // wait for Supabase JS to fully load
   await initSupabase();
 });
 
 async function initSupabase() {
   setBadge('busy', 'Connecting…');
   try {
-    sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    // Try both possible global names the UMD bundle might expose
+    const client = (window.supabase?.createClient || window.Supabase?.createClient);
+    if (!client) throw new Error('Supabase library not loaded');
+    sb = client(SUPABASE_URL, SUPABASE_KEY);
     // Test connection
     const { error } = await sb.from(TABLE).select('id').limit(1);
     if (error) throw error;
@@ -749,7 +772,9 @@ function connectSupabase() {
   if (!url || !key) { msg.className='sb-msg err'; msg.textContent='Both fields required.'; return; }
   msg.className='sb-msg busy'; msg.textContent='Testing connection…';
   try {
-    sb = window.supabase.createClient(url, key);
+    const client = (window.supabase?.createClient || window.Supabase?.createClient);
+    if (!client) { msg.className='sb-msg err'; msg.textContent='Library not loaded yet, refresh and try again.'; return; }
+    sb = client(url, key);
     sb.from(TABLE).select('id').limit(1).then(({error}) => {
       if (error) { msg.className='sb-msg err'; msg.textContent='Error: ' + error.message; return; }
       msg.className='sb-msg ok'; msg.textContent='✓ Connected!';
